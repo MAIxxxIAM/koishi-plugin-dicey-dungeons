@@ -1,4 +1,4 @@
-import { Context, Schema, Random, renameProperty, defineConfig, h } from 'koishi'
+import { Context, Schema, Random, renameProperty, defineConfig, h ,Session} from 'koishi'
 
 export const name = 'dicey-dungeons'
 
@@ -55,12 +55,45 @@ const Introduction = {
 };
 
 export interface Config {
-  管理员: string[];
+  MarkdownOn: boolean
+  markdownId: string
+  key1: string
+  key2: string
+  key3: string
+  key4: string
+  key5: string
+  key6: string
+  key7: string
+  key8: string
+  key9: string
+  key10: string
+  管理员: string[]
 }
 
-export const Config: Schema<Config> = Schema.object({
+export default Schema.intersect([
+  Schema.object({
+    enabled: Schema.boolean().default(false),
+  }).description('是否开启md'),
+  Schema.union([
+    Schema.object({
+      enabled: Schema.const(true).required(),
+      markdownId: Schema.string().required(),
+      key1: Schema.string().default('text1'),
+      key2: Schema.string().default('text2'),
+      key3: Schema.string().default('text3'),
+      key4: Schema.string().default('text4'),
+      key5: Schema.string().default('text5'),
+      key6: Schema.string().default('text6'),
+      key7: Schema.string().default('text7'),
+      key8: Schema.string().default('text8'),
+      key9: Schema.string().default('text9'),
+      key10: Schema.string().default('text10'),
+    }),
+    Schema.object({}),
+  ]),
+  Schema.object({
   管理员: Schema.array(String).required().role('table').description('填写QQ，用与重置对战'),
-})
+})])
 
 
 declare module 'koishi' {
@@ -94,9 +127,10 @@ export interface player {
   shield: number // 护盾
 }
 
-
+export let config: Config
 
 export function apply(ctx: Context, cfg: Config) {
+  config = cfg
   ctx.model.extend('dice_player', {
     userId: 'string',
     HP: 'unsigned',
@@ -136,7 +170,7 @@ export function apply(ctx: Context, cfg: Config) {
   })
   ctx.command('骰子地下城')
     .action(async ({ session }) => {
-      const { userId, guildId, username, platform } = session;
+      const { userId, guildId, username, platform } = session
       return `══骰子地下城══\n加入对战 创建对战\n对战信息 重置对战\n结束对战 结束回合\n状态说明 BUG反馈\n游戏介绍 关于游戏\n更新日志\nTips:对战建议一个群聊一个对战`
     })
   ctx.command('骰子地下城')
