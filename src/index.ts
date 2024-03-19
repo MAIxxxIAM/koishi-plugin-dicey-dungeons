@@ -1,4 +1,5 @@
 import { Context, Schema, Random, renameProperty, defineConfig, h ,Session} from 'koishi'
+import { markdown, sendmarkdownMessage } from './method/method';
 
 export const name = 'dicey-dungeons'
 
@@ -70,13 +71,13 @@ export interface Config {
   管理员: string[]
 }
 
-export default Schema.intersect([
+export const Config = Schema.intersect([
   Schema.object({
-    enabled: Schema.boolean().default(false),
+    MarkdownOn: Schema.boolean().default(false),
   }).description('是否开启md'),
   Schema.union([
     Schema.object({
-      enabled: Schema.const(true).required(),
+      MarkdownOn: Schema.const(true).required(),
       markdownId: Schema.string().required(),
       key1: Schema.string().default('text1'),
       key2: Schema.string().default('text2'),
@@ -215,15 +216,21 @@ export function apply(ctx: Context, cfg: Config) {
     .subcommand('创建对战')
     .action(async ({ session }) => {
       const { userId, guildId, username } = session;
-      const at = h.select(session.elements, 'at');
+      const at = h.select(session.elements, 'a t');
       const play = at?.[0]?.attrs.id;
-      const game_status = ['游戏结束', '游戏准备', '游戏开始'];
       const read = await ctx.database.get('dice_group', { guildId })
+      const commandList=['加入对战']
       if (read?.[0]?.game_status == 0 || !read?.[0]?.game_status) {
         await ctx.database.create('dice_group', { guildId, Play_1_userId: userId, game_status: 1 })
-        return `══骰子地下城══\n游戏准备中\n玩家1：${username}[${userId}]\n玩家2:暂缺\nTips：发送‘加入对战’即可加入`
+        const content=  `══骰子地下城══\n游戏准备中\n玩家1：${username}[${userId}]\n玩家2:暂缺\nTips：发送‘加入对战’即可加入`
+        let str=content.split('\n')
+        str[2]=`玩家1：<@${username}>`
+        try{ await sendmarkdownMessage(session,markdown(str,session,commandList))}catch{return content}
       } else {
-        return (read?.[0]?.game_status == 1) ? `══骰子地下城══\n游戏准备中\n玩家1：${read?.[0]?.Play_1_userId}\n玩家2:暂缺\nTips：发送‘加入对战’即可加入` : (read?.[0]?.game_status == 2) ? `══骰子地下城══\n游戏开始了\n请等待当前对战结束\nTips：发送‘创建对战’即可加入` : '事出反常必有妖！\n请联系开发者';
+        const content=  (read?.[0]?.game_status == 1) ? `══骰子地下城══\n游戏准备中\n玩家1：${read?.[0]?.Play_1_userId}\n玩家2:暂缺\nTips：发送‘加入对战’即可加入` : (read?.[0]?.game_status == 2) ? `══骰子地下城══\n游戏开始了\n请等待当前对战结束\nTips：发送‘创建对战’即可加入` : '事出反常必有妖！\n请联系开发者';
+        let str=content.split('\n')
+        str[2]= (read?.[0]?.game_status == 1) ?`玩家1：<@${read?.[0]?.Play_1_userId}>`:str[2]
+        try{ await sendmarkdownMessage(session,markdown(str,session,commandList))}catch{return content}
       }
     })
   ctx.command('骰子地下城')
@@ -235,10 +242,22 @@ export function apply(ctx: Context, cfg: Config) {
       const play_1 = await ctx.database.get('dice_player', { userId: read?.[0]?.Play_1_userId });
       const play_2 = await ctx.database.get('dice_player', { userId: read?.[0]?.Play_2_userId })
       if (read?.[0]?.game_status == 1 && userId != read?.[0]?.Play_1_userId) {
+        const commandList=['开始对战']
         await ctx.database.set('dice_group', { guildId }, { Play_2_userId: userId, game_status: 2 })
-        return `══骰子地下城══\n玩家1：${read?.[0]?.Play_1_userId}\n玩家2：${userId}\n请由玩家1开启对战\n->指令：开始对战`
+        const content= `══骰子地下城══\n玩家1：${read?.[0]?.Play_1_userId}\n玩家2：${userId}\n请由玩家1开启对战`
+        let str=content.split('\n')
+        str[1]=`玩家1：<@${read?.[0]?.Play_1_userId}>`
+        str[2]=`玩家2：<@${userId}>`
+       try{ await sendmarkdownMessage(session,markdown(str,session,commandList))
+      return}catch{return content+'\n->指令：开始对战'}
       } else {
-        return (read?.[0]?.game_status == 1) ? `══骰子地下城══\n玩家1：${read?.[0]?.Play_1_userId}\n玩家2：${read?.[0]?.Play_2_userId}\n请由玩家1开启对战\n->指令：开始对战` : (read?.[0]?.game_status == 1) ? `══骰子地下城══\n游戏开始了\n请等待当前对战结束\nTips：发送‘创建对战’即可加入` : '事出反常必有妖！\n请联系开发者';
+        const commandList=['开始对战','创建对战','加入对战']
+        const content= (read?.[0]?.game_status == 1) ? `══骰子地下城══\n玩家1：${read?.[0]?.Play_1_userId}\n玩家2：${read?.[0]?.Play_2_userId}\n请由玩家1开启对战\n->指令：开始对战` : (read?.[0]?.game_status == 1) ? `══骰子地下城══\n游戏开始了\n请等待当前对战结束\nTips：发送‘创建对战’即可加入` : '事出反常必有妖！\n请联系开发者';
+        let str=content.split('\n')
+        str[1]=(read?.[0]?.game_status == 1) ?`玩家1：<@${read?.[0]?.Play_1_userId}>`:str[1]
+        str[2]=(read?.[0]?.Play_2_userId) ?`玩家2：<@${read?.[0]?.Play_2_userId}>`:str[2]
+        try{ await sendmarkdownMessage(session,markdown(str,session,commandList))}catch(e){
+          return content}
       }
     })
   ctx.command('骰子地下城')
@@ -275,7 +294,10 @@ export function apply(ctx: Context, cfg: Config) {
         await ctx.database.set('dice_group', { guildId }, { bout: player })
         await Reset_times(ctx, player)
         await Generate_Dice(ctx, player)
-        return `接下来轮到\n【${h.at(player)}】\n装备和骰子已刷新\n${await 状态判定(ctx, dice_player?.[0]?.counterparties)}`
+       const content= `接下来轮到\n【${h.at(player)}】\n装备和骰子已刷新\n${await 状态判定(ctx, dice_player?.[0]?.counterparties)}`
+        let str=content.split('\n')
+        str[1]=`接下来轮到：<@${player}>`
+        try{ await sendmarkdownMessage(session,markdown(str,session,['点数'],false))}catch{return content}
       }
     })
   ctx.command('骰子地下城')
@@ -306,7 +328,7 @@ export function apply(ctx: Context, cfg: Config) {
       if (dice_player.length == 0) {
         return ''
       } else {
-        return `══骰子地下城══
+        const content= `══骰子地下城══
 当前回合：${dice_group?.[0]?.bout}
 ➢玩家：${username}[${userId}]
 血量：${HP(dice_player?.[0]?.HP, 50)}
@@ -314,6 +336,9 @@ ${Show_equipment(dice_player?.[0]?.skills, dice_player?.[0]?.skill)}
 骰子：${Show_Dice(dice_player?.[0]?.dice)}
 状态：${await Display_Status(ctx, userId)}
 指令：点数 骰子点数 装备序号`
+        let str=content.split('\n')
+        str[2]=`➢玩家：<@${userId}>`
+        try{ await sendmarkdownMessage(session,markdown(str,session,['点数'],false))}catch{return content}
       }
     })
   ctx.command('骰子地下城')
@@ -357,7 +382,10 @@ ${Show_equipment(dice_player?.[0]?.skills, dice_player?.[0]?.skill)}
           })
         );
         msg += effects.join('\n'); // 将所有异步函数的结果连接成一个字符串
-        return `══骰子地下城══\n玩家：${username}\n${msg}`
+        const content= `══骰子地下城══\n玩家：${username}\n${msg}`
+        let str=content.split('\n')
+        str[1]=`玩家：<@${username}>`
+        try{ await sendmarkdownMessage(session,markdown(str,session,['点数'],false))}catch{return content}
       }
     });
 

@@ -9,15 +9,15 @@ export interface QQMDMessageData {
         params: MDParms[]
     }
     keyboard?: {
-        content:Raws
+        content:Rows
     }
     msg_id: string
     timestamp: number
     msg_seq: number
 }
 
-interface Raws {
-    raws: buttons[]
+interface Rows {
+    rows: buttons[]
 }
 
 interface buttons {
@@ -48,13 +48,13 @@ interface MDParms {
 }
 
 
-export async function sendmarkdownMessage(session: Session, markdownData: QQMDMessageData, channelId: string = ''): Promise<void> {
-    await session.bot.internal.sendMessage(channelId, markdownData)
+export async function sendmarkdownMessage(session: Session, markdownData: QQMDMessageData): Promise<void> {
+    await session.bot.internal.sendMessage(session.channelId, markdownData)
 }
 
 
 
-export function markdown(mdStr: string[],session:Session,keyboard:string[]): QQMDMessageData {
+export function markdown(mdStr: string[],session:Session,keyboard:string[],entry:boolean=true): QQMDMessageData {
     return {
         content: "111",
         msg_type: 2,
@@ -63,7 +63,7 @@ export function markdown(mdStr: string[],session:Session,keyboard:string[]): QQM
             params: md(mdStr)
         },
         keyboard: {
-            content: kbbtn(keyboard, session),
+            content: kbbtn(keyboard, session,entry),
         },
         msg_id: session.messageId,
         timestamp: new Date().getTime(),
@@ -87,7 +87,7 @@ export function md(content: string[]): MDParms[] {
     return data
 }
 
-export function kbbtn(a: string[], session: Session,enter:boolean=true): Raws {
+export function kbbtn(a: string[], session: Session,enter:boolean=true): Rows {
     const data = a.map((item, index) => {
         return {
             id: index.toString(),
@@ -108,15 +108,15 @@ export function kbbtn(a: string[], session: Session,enter:boolean=true): Raws {
         }
     })
 
-    let raws = []
+    let rows = []
     let buttons = []
     data.forEach((item, index) => {
         buttons.push(item)
         if (buttons.length === 3 || index === data.length - 1) {
-            raws.push({ buttons: buttons })
+            rows.push({ buttons: buttons })
             buttons = []
         }
     })
-    return {raws}
+    return {rows}
 
 }
